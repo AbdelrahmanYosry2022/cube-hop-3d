@@ -5,13 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cube Hop Prototype</title>
     <link rel="stylesheet" href="./styles.css" />
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
-        }
-      }
-    </script>
   </head>
   <body>
     <main class="game-shell">
@@ -23,6 +16,7 @@
         <div class="stats">
           <span>Level <strong id="levelText">1</strong></span>
           <span>Moves <strong id="moveCount">0</strong></span>
+          <span>Stars <strong id="starRating">★★★</strong></span>
           <span>Tile <strong id="tilePosition">0, 0</strong></span>
           <span>Status <strong id="statusText">Find goal</strong></span>
         </div>
@@ -32,6 +26,7 @@
             <button class="avatar-button" data-avatar="noor" type="button">Noor</button>
           </div>
           <button class="restart-button" id="restartButton" type="button">Restart</button>
+          <button class="fullscreen-button" id="fullscreenButton" type="button">Full</button>
         </div>
       </section>
 
@@ -60,8 +55,16 @@
           </div>
         </div>
       </section>
+
+      <section class="orientation-overlay" id="orientationOverlay" aria-live="polite">
+        <div class="orientation-panel">
+          <p>Rotate phone</p>
+          <strong>Play in landscape</strong>
+          <button id="orientationFullscreenButton" type="button">Fullscreen</button>
+        </div>
+      </section>
     </main>
 
-    <script type="module" src="./game.js?v=21"></script>
+    <script type="module" src="./game.js"></script>
   </body>
 </html>

@@ -1,11 +1,13 @@
 import * as THREE from "three";
-import { GLTFLoader } from "https://unpkg.com/three@0.164.1/examples/jsm/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "https://unpkg.com/three@0.164.1/examples/jsm/libs/meshopt_decoder.module.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import noorModelUrl from "./assets/noor-model.glb?url";
 
 const gameRoot = document.querySelector("#game");
 const loading = document.querySelector("#loading");
 const levelTextEl = document.querySelector("#levelText");
 const moveCountEl = document.querySelector("#moveCount");
+const starRatingEl = document.querySelector("#starRating");
 const tilePositionEl = document.querySelector("#tilePosition");
 const statusTextEl = document.querySelector("#statusText");
 const restartButton = document.querySelector("#restartButton");
@@ -15,6 +17,8 @@ const winTitle = document.querySelector("#winTitle");
 const winDetail = document.querySelector("#winDetail");
 const nextLevelButton = document.querySelector("#nextLevelButton");
 const overlayRestartButton = document.querySelector("#overlayRestartButton");
+const fullscreenButton = document.querySelector("#fullscreenButton");
+const orientationFullscreenButton = document.querySelector("#orientationFullscreenButton");
 const controlButtons = [...document.querySelectorAll(".control-key")];
 const avatarButtons = [...document.querySelectorAll(".avatar-button")];
 
@@ -26,6 +30,7 @@ const noorForwardOffset = -Math.PI / 2;
 const levels = [
   {
     name: "Level 1",
+    par: 7,
     start: { x: 0, z: 0 },
     goal: { x: 3, z: -3 },
     hazards: [
@@ -40,6 +45,7 @@ const levels = [
   },
   {
     name: "Level 2",
+    par: 10,
     start: { x: -3, z: 3 },
     goal: { x: 3, z: -3 },
     hazards: [
@@ -57,9 +63,34 @@ const levels = [
       { x: 2, z: -1, phase: 1.05 },
     ],
   },
+  {
+    name: "Level 3",
+    par: 13,
+    start: { x: -4, z: 4 },
+    goal: { x: 4, z: -4 },
+    hazards: [
+      { x: -3, z: 2 },
+      { x: -1, z: 2 },
+      { x: 1, z: 1 },
+      { x: 2, z: 0 },
+      { x: 3, z: -1 },
+      { x: 0, z: -2 },
+      { x: -2, z: -1 },
+      { x: 1, z: -3 },
+    ],
+    disappearing: [
+      { x: -3, z: 3, phase: 0.05 },
+      { x: -2, z: 2, phase: 0.4 },
+      { x: -1, z: 1, phase: 0.75 },
+      { x: 0, z: 0, phase: 1.1 },
+      { x: 1, z: -1, phase: 1.45 },
+      { x: 2, z: -2, phase: 1.8 },
+    ],
+  },
 ];
 
 let moves = 0;
+let lastStarScore = 3;
 let levelIndex = 0;
 let level = levels[levelIndex];
 let currentTile = { ...level.start };
@@ -72,6 +103,9 @@ let noorModel = null;
 let noorMixer = null;
 let noorHopAction = null;
 let noorReady = false;
+let noorLoading = false;
+let queuedNoorSelection = false;
+let devQueryApplied = false;
 let avatarYaw = 0;
 let lastFrameTime = performance.now();
 let landingStartedAt = null;
@@ -233,6 +267,11 @@ landingRing.position.y = 0.045;
 landingRing.visible = false;
 scene.add(landingRing);
 
+const effectGroup = new THREE.Group();
+const effectParticleGeo = new THREE.SphereGeometry(0.055, 8, 8);
+const activeParticles = [];
+scene.add(effectGroup);
+
 const grid = new THREE.GridHelper((boardRadius * 2 + 1) * tileSize, boardRadius * 2 + 1, 0x42d392, 0x3f4b55);
 grid.position.y = 0.012;
 grid.material.transparent = true;
@@ -329,9 +368,21 @@ function isMissingTile(tile) {
   return disappearingKeys.has(key) && !disappearingActiveKeys.has(key);
 }
 
+function calculateStars(moveCount = moves) {
+  if (moveCount <= level.par) return 3;
+  if (moveCount <= level.par + 3) return 2;
+  return 1;
+}
+
+function formatStars(score) {
+  return `${"★".repeat(score)}${"☆".repeat(3 - score)}`;
+}
+
 function updateHud() {
   levelTextEl.textContent = String(levelIndex + 1);
   moveCountEl.textContent = String(moves);
+  lastStarScore = calculateStars();
+  starRatingEl.textContent = formatStars(lastStarScore);
   tilePositionEl.textContent = `${currentTile.x}, ${currentTile.z}`;
   statusTextEl.textContent = statusMessage;
   document.body.dataset.avatar = activeAvatar;
@@ -390,8 +441,10 @@ function playSound(name) {
 function showWinOverlay({ final = false } = {}) {
   winOverlay.classList.remove("is-hidden");
   winEyebrow.textContent = final ? "Game clear" : "Level clear";
-  winTitle.textContent = final ? "You win!" : "Stage clear!";
-  winDetail.textContent = final ? `Finished in ${moves} moves.` : "Level 2 is ready.";
+  winTitle.textContent = final ? "You win!" : `${formatStars(lastStarScore)} clear!`;
+  winDetail.textContent = final
+    ? `Finished ${level.name} in ${moves} moves. ${formatStars(lastStarScore)}`
+    : `${levels[levelIndex + 1].name} is ready. ${moves} moves.`;
   nextLevelButton.textContent = final ? "Play again" : "Next level";
 }
 
@@ -439,10 +492,29 @@ function startLandingEffect() {
   landingRing.visible = true;
 }
 
+function spawnBurst(tile, color = 0x42d392, count = 18) {
+  const world = tileToWorld(tile);
+  for (let index = 0; index < count; index += 1) {
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 });
+    const particle = new THREE.Mesh(effectParticleGeo, material);
+    const angle = (index / count) * Math.PI * 2;
+    const speed = 0.035 + Math.random() * 0.035;
+    particle.position.set(world.x, 0.32 + Math.random() * 0.3, world.z);
+    effectGroup.add(particle);
+    activeParticles.push({
+      mesh: particle,
+      velocity: new THREE.Vector3(Math.cos(angle) * speed, 0.045 + Math.random() * 0.06, Math.sin(angle) * speed),
+      bornAt: performance.now(),
+      life: 520 + Math.random() * 320,
+    });
+  }
+}
+
 function resetLevel(message = "Try again") {
   hideWinOverlay();
   gameState = "resetting";
   statusMessage = message;
+  spawnBurst(currentTile, 0xff6b6b, 16);
   updateHud();
 
   window.setTimeout(() => {
@@ -452,6 +524,8 @@ function resetLevel(message = "Try again") {
 
 function finishLevel() {
   playSound("win");
+  lastStarScore = calculateStars();
+  spawnBurst(currentTile, 0x42d392, 28);
   if (levelIndex < levels.length - 1) {
     gameState = "won";
     statusMessage = "Level clear!";
@@ -490,6 +564,24 @@ function animateLandingEffect(now) {
   }
 }
 
+function animateParticles(now) {
+  for (let index = activeParticles.length - 1; index >= 0; index -= 1) {
+    const particle = activeParticles[index];
+    const age = now - particle.bornAt;
+    const progress = Math.min(age / particle.life, 1);
+    particle.velocity.y -= 0.003;
+    particle.mesh.position.add(particle.velocity);
+    particle.mesh.material.opacity = 0.9 * (1 - progress);
+    particle.mesh.scale.setScalar(1 - progress * 0.55);
+
+    if (progress >= 1) {
+      effectGroup.remove(particle.mesh);
+      particle.mesh.material.dispose();
+      activeParticles.splice(index, 1);
+    }
+  }
+}
+
 function animateDisappearingTiles(now) {
   disappearingActiveKeys.clear();
 
@@ -512,12 +604,20 @@ function animateDisappearingTiles(now) {
 }
 
 function applyDevQuery() {
+  if (devQueryApplied) return;
   const params = new URLSearchParams(window.location.search);
   const avatar = params.get("avatar");
   const move = params.get("move");
   const movesParam = params.get("moves");
   const debugMode = params.get("debug") === "1";
 
+  if (avatar === "noor" && !noorReady) {
+    queuedNoorSelection = true;
+    loadNoorModel(true);
+    return;
+  }
+
+  devQueryApplied = true;
   if (avatar === "noor") setAvatar("noor");
   if (avatar === "cube") setAvatar("cube");
   if (!debugMode) return;
@@ -540,7 +640,11 @@ function applyDevQuery() {
 }
 
 function setAvatar(avatar) {
-  if (avatar === "noor" && !noorReady) return;
+  if (avatar === "noor" && !noorReady) {
+    queuedNoorSelection = true;
+    loadNoorModel(true);
+    return;
+  }
   activeAvatar = avatar;
   cubeAvatar.visible = avatar === "cube";
   noorAvatar.visible = avatar === "noor";
@@ -666,6 +770,7 @@ function animate(now) {
   if (noorMixer) noorMixer.update(delta);
   animateHop(now);
   animateLandingEffect(now);
+  animateParticles(now);
   animateDisappearingTiles(now);
   if (!hop) setNoorMotion(0, null);
   targetMarker.rotation.z += 0.012;
@@ -687,7 +792,86 @@ function resize() {
   renderer.setSize(width, height);
 }
 
+async function requestLandscapeFullscreen() {
+  const root = document.documentElement;
+  try {
+    if (!document.fullscreenElement && root.requestFullscreen) {
+      await root.requestFullscreen({ navigationUI: "hide" });
+    }
+  } catch {
+    // Some mobile browsers only allow fullscreen from specific touch gestures.
+  }
+
+  try {
+    if (screen.orientation?.lock) await screen.orientation.lock("landscape");
+  } catch {
+    // iOS Safari may ignore orientation lock; the portrait overlay still guides the player.
+  }
+
+  updateFullscreenState();
+}
+
+function updateFullscreenState() {
+  const fullscreen = Boolean(document.fullscreenElement);
+  document.body.classList.toggle("is-fullscreen", fullscreen);
+  if (fullscreenButton) fullscreenButton.textContent = fullscreen ? "Exit" : "Full";
+}
+
+let swipeStart = null;
+
+function startSwipe(clientX, clientY) {
+  swipeStart = {
+    x: clientX,
+    y: clientY,
+    time: performance.now(),
+  };
+}
+
+function finishSwipe(clientX, clientY) {
+  if (!swipeStart) return;
+
+  const dx = clientX - swipeStart.x;
+  const dy = clientY - swipeStart.y;
+  const distance = Math.hypot(dx, dy);
+  const elapsed = performance.now() - swipeStart.time;
+  swipeStart = null;
+
+  if (distance < 38 || elapsed > 720) return;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    tryMove(dx > 0 ? "ArrowRight" : "ArrowLeft");
+  } else {
+    tryMove(dy > 0 ? "ArrowDown" : "ArrowUp");
+  }
+}
+
+function handlePointerStart(event) {
+  if (event.pointerType === "touch") return;
+  if (event.target.closest("button")) return;
+  startSwipe(event.clientX, event.clientY);
+}
+
+function handlePointerEnd(event) {
+  if (event.pointerType === "touch") return;
+  if (!swipeStart || event.target.closest("button")) return;
+  finishSwipe(event.clientX, event.clientY);
+}
+
+function handleTouchStart(event) {
+  if (event.target.closest("button")) return;
+  const touch = event.changedTouches[0];
+  if (!touch) return;
+  startSwipe(touch.clientX, touch.clientY);
+}
+
+function handleTouchEnd(event) {
+  if (!swipeStart || event.target.closest("button")) return;
+  const touch = event.changedTouches[0];
+  if (!touch) return;
+  finishSwipe(touch.clientX, touch.clientY);
+}
+
 window.addEventListener("resize", resize);
+document.addEventListener("fullscreenchange", updateFullscreenState);
 window.addEventListener("keydown", (event) => {
   if (event.key.toLowerCase() === "r") {
     event.preventDefault();
@@ -706,10 +890,22 @@ controlButtons.forEach((button) => {
 });
 
 restartButton.addEventListener("click", () => resetLevel("Restart"));
+fullscreenButton.addEventListener("click", () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+    return;
+  }
+  requestLandscapeFullscreen();
+});
+orientationFullscreenButton.addEventListener("click", requestLandscapeFullscreen);
+gameRoot.addEventListener("pointerdown", handlePointerStart);
+gameRoot.addEventListener("pointerup", handlePointerEnd);
+gameRoot.addEventListener("touchstart", handleTouchStart, { passive: true });
+gameRoot.addEventListener("touchend", handleTouchEnd);
 
 nextLevelButton.addEventListener("click", () => {
   if (levelIndex < levels.length - 1) {
-    loadLevel(levelIndex + 1, "Level 2");
+    loadLevel(levelIndex + 1, levels[levelIndex + 1].name);
     return;
   }
   loadLevel(0, "Find goal");
@@ -727,73 +923,92 @@ if (noorButton) {
   noorButton.textContent = "Noor...";
 }
 
-const loader = new GLTFLoader();
-loader.setMeshoptDecoder(MeshoptDecoder);
-loader.load(
-  "./assets/noor-model.glb",
-  (gltf) => {
-    noorModel = gltf.scene;
-    noorModel.rotation.y = 0;
-    noorModel.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-
-    const box = new THREE.Box3().setFromObject(noorModel);
-    const size = new THREE.Vector3();
-    const center = new THREE.Vector3();
-    box.getSize(size);
-    box.getCenter(center);
-
-    const maxDimension = Math.max(size.x, size.y, size.z);
-    const scale = maxDimension > 0 ? 1.35 / maxDimension : 1;
-    noorModel.scale.setScalar(scale);
-    noorModel.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
-
-    noorBody.add(noorModel);
-    if (gltf.animations.length > 0) {
-      noorMixer = new THREE.AnimationMixer(noorModel);
-      const jumpClip =
-        gltf.animations.find((clip) => /jump|hop|run|walk/i.test(clip.name)) || gltf.animations[0];
-      noorHopAction = noorMixer.clipAction(jumpClip);
-      noorHopAction.timeScale = jumpClip.duration > 0 ? jumpClip.duration / (hopDuration / 1000) : 1;
-    }
-    noorReady = true;
-    document.body.dataset.animationCount = String(gltf.animations.length);
-    window.CubeHopDebug = {
-      get activeAvatar() {
-        return activeAvatar;
-      },
-      get avatarYaw() {
-        return avatarYaw;
-      },
-      setYaw(yaw) {
-        avatarYaw = yaw;
-        noorAvatar.rotation.y = yaw;
-        document.body.dataset.avatarYaw = avatarYaw.toFixed(3);
-      },
-      animationNames: gltf.animations.map((clip) => clip.name || "Unnamed"),
-      noorForwardOffset,
-    };
-    if (noorButton) {
-      noorButton.disabled = false;
-      noorButton.textContent = "Noor";
-    }
-    applyDevQuery();
-  },
-  undefined,
-  () => {
-    if (noorButton) {
-      noorButton.disabled = true;
-      noorButton.textContent = "Noor!";
-    }
-    setLoadingMessage("Could not load Noor model.", true);
-    window.setTimeout(() => setLoadingMessage(""), 2400);
+function loadNoorModel(showStatus = false) {
+  if (noorReady || noorLoading) return;
+  noorLoading = true;
+  if (showStatus) setLoadingMessage("Loading Noor...");
+  if (noorButton) {
+    noorButton.disabled = true;
+    noorButton.textContent = "Noor...";
   }
-);
+
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.load(
+    noorModelUrl,
+    (gltf) => {
+      noorModel = gltf.scene;
+      noorModel.rotation.y = 0;
+      noorModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      const box = new THREE.Box3().setFromObject(noorModel);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      const maxDimension = Math.max(size.x, size.y, size.z);
+      const scale = maxDimension > 0 ? 1.35 / maxDimension : 1;
+      noorModel.scale.setScalar(scale);
+      noorModel.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+
+      noorBody.add(noorModel);
+      if (gltf.animations.length > 0) {
+        noorMixer = new THREE.AnimationMixer(noorModel);
+        const jumpClip =
+          gltf.animations.find((clip) => /jump|hop|run|walk/i.test(clip.name)) || gltf.animations[0];
+        noorHopAction = noorMixer.clipAction(jumpClip);
+        noorHopAction.timeScale = jumpClip.duration > 0 ? jumpClip.duration / (hopDuration / 1000) : 1;
+      }
+      noorReady = true;
+      noorLoading = false;
+      document.body.dataset.animationCount = String(gltf.animations.length);
+      window.CubeHopDebug = {
+        get activeAvatar() {
+          return activeAvatar;
+        },
+        get avatarYaw() {
+          return avatarYaw;
+        },
+        setYaw(yaw) {
+          avatarYaw = yaw;
+          noorAvatar.rotation.y = yaw;
+          document.body.dataset.avatarYaw = avatarYaw.toFixed(3);
+        },
+        animationNames: gltf.animations.map((clip) => clip.name || "Unnamed"),
+        noorForwardOffset,
+      };
+      if (noorButton) {
+        noorButton.disabled = false;
+        noorButton.textContent = "Noor";
+      }
+      if (queuedNoorSelection) {
+        queuedNoorSelection = false;
+        setAvatar("noor");
+      }
+      setLoadingMessage("");
+      applyDevQuery();
+    },
+    undefined,
+    () => {
+      noorLoading = false;
+      if (noorButton) {
+        noorButton.disabled = true;
+        noorButton.textContent = "Noor!";
+      }
+      setLoadingMessage("Could not load Noor model.", true);
+      window.setTimeout(() => setLoadingMessage(""), 2400);
+    }
+  );
+}
 
 loadLevel(0, "Find goal");
 setLoadingMessage("");
+applyDevQuery();
+window.setTimeout(() => loadNoorModel(false), 900);
 requestAnimationFrame(animate);
