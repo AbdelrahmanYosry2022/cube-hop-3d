@@ -9,6 +9,7 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "lucide": "^1.16.0",
     "three": "0.164.1"
   },
   "devDependencies": {

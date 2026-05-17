@@ -1,6 +1,22 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import {
+  Box,
+  Camera,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  CircleAlert,
+  CircleUserRound,
+  LoaderCircle,
+  Maximize,
+  Minimize,
+  RotateCcw,
+  Smartphone,
+  createElement as createLucideElement,
+} from "lucide";
 import noorModelUrl from "./assets/noor-model.glb?url";
 
 const gameRoot = document.querySelector("#game");
@@ -35,14 +51,14 @@ const noorForwardOffset = -Math.PI / 2;
 const cameraPresets = {
   classic: {
     label: "Classic camera",
-    icon: "◉",
+    icon: "Camera",
     offset: new THREE.Vector3(5.8, 6.5, 7.6),
     lookAtYOffset: 0,
     lerp: 0.07,
   },
   mobile: {
     label: "Mobile camera",
-    icon: "◎",
+    icon: "Smartphone",
     offset: new THREE.Vector3(4.2, 4.55, 5.6),
     lookAtYOffset: 0.18,
     lerp: 0.09,
@@ -143,6 +159,41 @@ let cameraModeLocked = false;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111419);
 scene.fog = new THREE.Fog(0x111419, 12, 25);
+
+const iconNodes = {
+  Box,
+  Camera,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  CircleAlert,
+  CircleUserRound,
+  LoaderCircle,
+  Maximize,
+  Minimize,
+  RotateCcw,
+  Smartphone,
+};
+
+function setIcon(target, iconName) {
+  const slot = target?.matches?.(".icon-slot") ? target : target?.querySelector?.(".icon-slot");
+  const iconNode = iconNodes[iconName];
+  if (!slot || !iconNode) return;
+
+  slot.dataset.icon = iconName;
+  slot.replaceChildren(
+    createLucideElement(iconNode, {
+      class: "lucide-icon",
+      "aria-hidden": "true",
+      focusable: "false",
+    })
+  );
+}
+
+function renderIcons(root = document) {
+  root.querySelectorAll(".icon-slot[data-icon]").forEach((slot) => setIcon(slot, slot.dataset.icon));
+}
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(5.8, 6.5, 7.6);
@@ -849,7 +900,7 @@ function setCameraMode(mode, lock = true) {
   const preset = cameraPresets[cameraMode];
   document.body.dataset.cameraMode = cameraMode;
   if (cameraButton) {
-    cameraButton.querySelector("[aria-hidden='true']").textContent = preset.icon;
+    setIcon(cameraButton, preset.icon);
     cameraButton.setAttribute("aria-label", preset.label);
     cameraButton.title = preset.label;
   }
@@ -882,7 +933,7 @@ function updateFullscreenState() {
   const fullscreen = Boolean(document.fullscreenElement);
   document.body.classList.toggle("is-fullscreen", fullscreen);
   if (fullscreenButton) {
-    fullscreenButton.querySelector("[aria-hidden='true']").textContent = fullscreen ? "×" : "⛶";
+    setIcon(fullscreenButton, fullscreen ? "Minimize" : "Maximize");
     fullscreenButton.setAttribute("aria-label", fullscreen ? "Exit fullscreen" : "Fullscreen");
     fullscreenButton.title = fullscreen ? "Exit fullscreen" : "Fullscreen";
   }
@@ -992,7 +1043,7 @@ avatarButtons.forEach((button) => {
 const noorButton = avatarButtons.find((button) => button.dataset.avatar === "noor");
 if (noorButton) {
   noorButton.disabled = true;
-  noorButton.querySelector("[aria-hidden='true']").textContent = "●";
+  setIcon(noorButton, "CircleUserRound");
 }
 
 function loadNoorModel(showStatus = false) {
@@ -1001,7 +1052,7 @@ function loadNoorModel(showStatus = false) {
   if (showStatus) setLoadingMessage("Loading Noor...");
   if (noorButton) {
     noorButton.disabled = true;
-    noorButton.querySelector("[aria-hidden='true']").textContent = "●";
+    setIcon(noorButton, "LoaderCircle");
   }
 
   const loader = new GLTFLoader();
@@ -1057,7 +1108,7 @@ function loadNoorModel(showStatus = false) {
       };
       if (noorButton) {
         noorButton.disabled = false;
-        noorButton.querySelector("[aria-hidden='true']").textContent = "●";
+        setIcon(noorButton, "CircleUserRound");
       }
       if (queuedNoorSelection) {
         queuedNoorSelection = false;
@@ -1071,7 +1122,7 @@ function loadNoorModel(showStatus = false) {
       noorLoading = false;
       if (noorButton) {
         noorButton.disabled = true;
-        noorButton.querySelector("[aria-hidden='true']").textContent = "!";
+        setIcon(noorButton, "CircleAlert");
       }
       setLoadingMessage("Could not load Noor model.", true);
       window.setTimeout(() => setLoadingMessage(""), 2400);
@@ -1079,6 +1130,7 @@ function loadNoorModel(showStatus = false) {
   );
 }
 
+renderIcons();
 loadLevel(0, "Find goal");
 setLoadingMessage("");
 setCameraMode(getPreferredCameraMode(), false);
