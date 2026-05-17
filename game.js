@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "https://unpkg.com/three@0.164.1/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "https://unpkg.com/three@0.164.1/examples/jsm/libs/meshopt_decoder.module.js";
 
 const gameRoot = document.querySelector("#game");
 const loading = document.querySelector("#loading");
@@ -727,6 +728,7 @@ if (noorButton) {
 }
 
 const loader = new GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder);
 loader.load(
   "./assets/noor-model.glb",
   (gltf) => {

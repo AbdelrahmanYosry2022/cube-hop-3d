@@ -24,5 +24,6 @@ http://127.0.0.1:4173
 ## Notes
 
 - The Noor model is included at `assets/noor-model.glb`.
+- The Noor model is optimized with Meshopt geometry compression and WebP textures for faster loading.
 - The model is currently a single mesh with no bones or animation clips, so motion is procedural.
 - Audio is generated with the Web Audio API.
