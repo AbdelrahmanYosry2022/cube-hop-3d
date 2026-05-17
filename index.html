@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cube Hop Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="hud" aria-label="Game status">
+        <div>
+          <p class="eyebrow">Prototype</p>
+          <h1>Cube Hop</h1>
+        </div>
+        <div class="stats">
+          <span>Level <strong id="levelText">1</strong></span>
+          <span>Moves <strong id="moveCount">0</strong></span>
+          <span>Tile <strong id="tilePosition">0, 0</strong></span>
+          <span>Status <strong id="statusText">Find goal</strong></span>
+        </div>
+        <div class="top-actions">
+          <div class="avatar-switch" aria-label="Choose player">
+            <button class="avatar-button is-active" data-avatar="cube" type="button">Cube</button>
+            <button class="avatar-button" data-avatar="noor" type="button">Noor</button>
+          </div>
+          <button class="restart-button" id="restartButton" type="button">Restart</button>
+        </div>
+      </section>
+
+      <section class="viewport" aria-label="3D game viewport">
+        <div id="game"></div>
+        <div id="loading" class="loading">Loading 3D world...</div>
+      </section>
+
+      <section class="controls" aria-label="Controls">
+        <button class="control-key" data-key="ArrowUp" aria-label="Move forward">↑</button>
+        <div>
+          <button class="control-key" data-key="ArrowLeft" aria-label="Move left">←</button>
+          <button class="control-key" data-key="ArrowDown" aria-label="Move back">↓</button>
+          <button class="control-key" data-key="ArrowRight" aria-label="Move right">→</button>
+        </div>
+      </section>
+
+      <section class="win-overlay is-hidden" id="winOverlay" aria-live="polite">
+        <div class="win-panel">
+          <p id="winEyebrow">Level clear</p>
+          <h2 id="winTitle">Stage clear!</h2>
+          <span id="winDetail">Ready for the next level.</span>
+          <div class="win-actions">
+            <button id="nextLevelButton" type="button">Next level</button>
+            <button id="overlayRestartButton" type="button">Restart</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./game.js?v=20"></script>
+  </body>
+</html>

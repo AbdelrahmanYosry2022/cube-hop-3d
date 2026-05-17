@@ -1,0 +1,356 @@
+:root {
+  color-scheme: dark;
+  --bg: #101114;
+  --panel: rgba(24, 27, 34, 0.82);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --text: #f5f0e8;
+  --muted: #b8b2a8;
+  --accent: #42d392;
+  --accent-2: #ffcf5c;
+  --danger: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 12%, rgba(66, 211, 146, 0.16), transparent 28%),
+    linear-gradient(135deg, #101114 0%, #1b1d24 48%, #141b1a 100%);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.game-shell {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: 100vw;
+  height: 100vh;
+  min-height: 520px;
+}
+
+.hud {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px clamp(18px, 4vw, 46px);
+  pointer-events: none;
+}
+
+.hud button {
+  pointer-events: auto;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4.6rem);
+  line-height: 0.95;
+}
+
+.stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.stats span {
+  min-width: 108px;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-align: center;
+  backdrop-filter: blur(14px);
+}
+
+.stats span:last-child {
+  min-width: 128px;
+}
+
+.stats strong {
+  display: block;
+  direction: ltr;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 1.12rem;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  direction: ltr;
+  gap: 8px;
+}
+
+.avatar-switch {
+  display: flex;
+  direction: ltr;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+}
+
+.avatar-button {
+  min-width: 64px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.avatar-button:hover,
+.avatar-button.is-active {
+  border-color: rgba(66, 211, 146, 0.65);
+  background: rgba(66, 211, 146, 0.18);
+  color: var(--text);
+}
+
+.avatar-button:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.restart-button {
+  height: 50px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 207, 92, 0.5);
+  border-radius: 8px;
+  background: rgba(255, 207, 92, 0.14);
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 900;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+}
+
+.restart-button:hover {
+  background: rgba(255, 207, 92, 0.24);
+}
+
+.viewport,
+#game,
+canvas {
+  position: absolute;
+  inset: 0;
+}
+
+#game {
+  z-index: 0;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.loading {
+  position: absolute;
+  inset-inline: 50%;
+  top: 50%;
+  z-index: 3;
+  width: min(280px, calc(100vw - 48px));
+  transform: translate(50%, -50%);
+  padding: 16px 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: center;
+  backdrop-filter: blur(14px);
+}
+
+.loading.is-hidden {
+  display: none;
+}
+
+.loading.is-error {
+  border-color: rgba(255, 107, 107, 0.55);
+  color: #ffe2e2;
+}
+
+.controls {
+  position: absolute;
+  right: clamp(18px, 4vw, 46px);
+  bottom: 24px;
+  z-index: 2;
+  display: grid;
+  direction: ltr;
+  justify-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0;
+}
+
+.controls div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-key {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(245, 240, 232, 0.1);
+  color: var(--text);
+  font-size: 1.55rem;
+  font-weight: 800;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+}
+
+.control-key:hover,
+.control-key.is-active {
+  border-color: rgba(66, 211, 146, 0.8);
+  background: rgba(66, 211, 146, 0.18);
+}
+
+.win-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 12, 16, 0.45);
+  backdrop-filter: blur(8px);
+}
+
+.win-overlay.is-hidden {
+  display: none;
+}
+
+.win-panel {
+  width: min(420px, calc(100vw - 48px));
+  padding: 26px;
+  border: 1px solid rgba(66, 211, 146, 0.36);
+  border-radius: 8px;
+  background: rgba(24, 27, 34, 0.94);
+  text-align: center;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42);
+}
+
+.win-panel p {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.win-panel h2 {
+  margin: 0;
+  font-size: clamp(2.1rem, 7vw, 4rem);
+  line-height: 1;
+}
+
+.win-panel span {
+  display: block;
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.win-actions {
+  display: flex;
+  direction: ltr;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.win-actions button {
+  min-width: 120px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.win-actions button:first-child {
+  border-color: rgba(66, 211, 146, 0.7);
+  background: rgba(66, 211, 146, 0.2);
+}
+
+@media (max-width: 700px) {
+  body {
+    overflow: hidden;
+  }
+
+  .game-shell {
+    min-height: 600px;
+  }
+
+  .hud {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .stats {
+    justify-content: flex-start;
+  }
+
+  .stats span {
+    min-width: 96px;
+  }
+
+  .control-key {
+    width: 52px;
+    height: 52px;
+  }
+
+  .controls {
+    right: 18px;
+    bottom: 18px;
+  }
+
+  .top-actions {
+    flex-wrap: wrap;
+  }
+}
