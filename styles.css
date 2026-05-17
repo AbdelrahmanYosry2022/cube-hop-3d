@@ -327,22 +327,81 @@ canvas {
   }
 
   .hud {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .hud > div:first-child {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    text-align: right;
+  }
+
+  .eyebrow {
+    margin-bottom: 1px;
+    font-size: 0.58rem;
+  }
+
+  h1 {
+    font-size: clamp(1.35rem, 6.5vw, 1.75rem);
   }
 
   .stats {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     justify-content: flex-start;
+    gap: 5px;
+    width: 100%;
   }
 
   .stats span {
-    min-width: 96px;
+    min-width: 0;
+    padding: 5px 4px;
+    font-size: 0.58rem;
   }
 
-  .control-key {
-    width: 52px;
-    height: 52px;
+  .stats span:last-child {
+    min-width: 0;
+  }
+
+  .stats strong {
+    margin-top: 1px;
+    font-size: 0.76rem;
+  }
+
+  .stats span:last-child strong {
+    font-size: 0.7rem;
+  }
+
+  .top-actions {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+
+  .avatar-switch {
+    padding: 3px;
+    gap: 3px;
+  }
+
+  .avatar-button {
+    min-width: 50px;
+    height: 32px;
+    font-size: 0.72rem;
+  }
+
+  .restart-button {
+    height: 38px;
+    padding: 0 10px;
+    font-size: 0.72rem;
   }
 
   .controls {
@@ -350,7 +409,8 @@ canvas {
     bottom: 18px;
   }
 
-  .top-actions {
-    flex-wrap: wrap;
+  .control-key {
+    width: 52px;
+    height: 52px;
   }
 }
