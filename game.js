@@ -15,8 +15,13 @@ const winOverlay = document.querySelector("#winOverlay");
 const winEyebrow = document.querySelector("#winEyebrow");
 const winTitle = document.querySelector("#winTitle");
 const winDetail = document.querySelector("#winDetail");
+const resultStars = document.querySelector("#resultStars");
+const resultMoves = document.querySelector("#resultMoves");
+const resultTime = document.querySelector("#resultTime");
+const resultPar = document.querySelector("#resultPar");
 const nextLevelButton = document.querySelector("#nextLevelButton");
 const overlayRestartButton = document.querySelector("#overlayRestartButton");
+const cameraButton = document.querySelector("#cameraButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
 const orientationFullscreenButton = document.querySelector("#orientationFullscreenButton");
 const controlButtons = [...document.querySelectorAll(".control-key")];
@@ -27,6 +32,22 @@ const boardRadius = 4;
 const hopDuration = 260;
 const landingDuration = 320;
 const noorForwardOffset = -Math.PI / 2;
+const cameraPresets = {
+  classic: {
+    label: "Classic camera",
+    icon: "◉",
+    offset: new THREE.Vector3(5.8, 6.5, 7.6),
+    lookAtYOffset: 0,
+    lerp: 0.07,
+  },
+  mobile: {
+    label: "Mobile camera",
+    icon: "◎",
+    offset: new THREE.Vector3(4.2, 4.55, 5.6),
+    lookAtYOffset: 0.18,
+    lerp: 0.09,
+  },
+};
 const levels = [
   {
     name: "Level 1",
@@ -91,6 +112,8 @@ const levels = [
 
 let moves = 0;
 let lastStarScore = 3;
+let levelStartedAt = performance.now();
+let levelElapsedMs = 0;
 let levelIndex = 0;
 let level = levels[levelIndex];
 let currentTile = { ...level.start };
@@ -114,6 +137,8 @@ let disappearingKeys = new Set();
 let disappearingActiveKeys = new Set();
 let goalKey = "";
 let audioContext = null;
+let cameraMode = "classic";
+let cameraModeLocked = false;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111419);
@@ -342,6 +367,9 @@ function loadLevel(nextIndex, message = "Find goal") {
   targetTile = { ...level.start };
   hop = null;
   moves = 0;
+  lastStarScore = 3;
+  levelStartedAt = performance.now();
+  levelElapsedMs = 0;
   landingStartedAt = null;
   landingRing.visible = false;
   gameState = "playing";
@@ -376,6 +404,10 @@ function calculateStars(moveCount = moves) {
 
 function formatStars(score) {
   return `${"★".repeat(score)}${"☆".repeat(3 - score)}`;
+}
+
+function formatTime(ms) {
+  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 function updateHud() {
@@ -443,8 +475,12 @@ function showWinOverlay({ final = false } = {}) {
   winEyebrow.textContent = final ? "Game clear" : "Level clear";
   winTitle.textContent = final ? "You win!" : `${formatStars(lastStarScore)} clear!`;
   winDetail.textContent = final
-    ? `Finished ${level.name} in ${moves} moves. ${formatStars(lastStarScore)}`
-    : `${levels[levelIndex + 1].name} is ready. ${moves} moves.`;
+    ? `Finished ${level.name}.`
+    : `${levels[levelIndex + 1].name} is ready.`;
+  resultStars.textContent = formatStars(lastStarScore);
+  resultMoves.textContent = String(moves);
+  resultTime.textContent = formatTime(levelElapsedMs);
+  resultPar.textContent = String(level.par);
   nextLevelButton.textContent = final ? "Play again" : "Next level";
 }
 
@@ -525,6 +561,7 @@ function resetLevel(message = "Try again") {
 function finishLevel() {
   playSound("win");
   lastStarScore = calculateStars();
+  levelElapsedMs = performance.now() - levelStartedAt;
   spawnBurst(currentTile, 0x42d392, 28);
   if (levelIndex < levels.length - 1) {
     gameState = "won";
@@ -758,9 +795,14 @@ function animateHop(now) {
 }
 
 function updateCamera() {
-  const follow = new THREE.Vector3(player.position.x + 5.8, 6.5, player.position.z + 7.6);
-  camera.position.lerp(follow, 0.07);
-  camera.lookAt(player.position.x, 0, player.position.z);
+  const preset = cameraPresets[cameraMode] || cameraPresets.classic;
+  const follow = new THREE.Vector3(
+    player.position.x + preset.offset.x,
+    preset.offset.y,
+    player.position.z + preset.offset.z
+  );
+  camera.position.lerp(follow, preset.lerp);
+  camera.lookAt(player.position.x, preset.lookAtYOffset, player.position.z);
 }
 
 function animate(now) {
@@ -790,6 +832,31 @@ function resize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
+  if (!cameraModeLocked) setCameraMode(getPreferredCameraMode(), false);
+}
+
+function isMobileLandscape() {
+  return window.matchMedia("(hover: none) and (pointer: coarse) and (orientation: landscape)").matches;
+}
+
+function getPreferredCameraMode() {
+  return isMobileLandscape() ? "mobile" : "classic";
+}
+
+function setCameraMode(mode, lock = true) {
+  cameraMode = mode === "mobile" ? "mobile" : "classic";
+  cameraModeLocked = lock;
+  const preset = cameraPresets[cameraMode];
+  document.body.dataset.cameraMode = cameraMode;
+  if (cameraButton) {
+    cameraButton.querySelector("[aria-hidden='true']").textContent = preset.icon;
+    cameraButton.setAttribute("aria-label", preset.label);
+    cameraButton.title = preset.label;
+  }
+}
+
+function toggleCameraMode() {
+  setCameraMode(cameraMode === "mobile" ? "classic" : "mobile", true);
 }
 
 async function requestLandscapeFullscreen() {
@@ -814,7 +881,11 @@ async function requestLandscapeFullscreen() {
 function updateFullscreenState() {
   const fullscreen = Boolean(document.fullscreenElement);
   document.body.classList.toggle("is-fullscreen", fullscreen);
-  if (fullscreenButton) fullscreenButton.textContent = fullscreen ? "Exit" : "Full";
+  if (fullscreenButton) {
+    fullscreenButton.querySelector("[aria-hidden='true']").textContent = fullscreen ? "×" : "⛶";
+    fullscreenButton.setAttribute("aria-label", fullscreen ? "Exit fullscreen" : "Fullscreen");
+    fullscreenButton.title = fullscreen ? "Exit fullscreen" : "Fullscreen";
+  }
 }
 
 let swipeStart = null;
@@ -890,6 +961,7 @@ controlButtons.forEach((button) => {
 });
 
 restartButton.addEventListener("click", () => resetLevel("Restart"));
+cameraButton.addEventListener("click", toggleCameraMode);
 fullscreenButton.addEventListener("click", () => {
   if (document.fullscreenElement) {
     document.exitFullscreen?.();
@@ -920,7 +992,7 @@ avatarButtons.forEach((button) => {
 const noorButton = avatarButtons.find((button) => button.dataset.avatar === "noor");
 if (noorButton) {
   noorButton.disabled = true;
-  noorButton.textContent = "Noor...";
+  noorButton.querySelector("[aria-hidden='true']").textContent = "●";
 }
 
 function loadNoorModel(showStatus = false) {
@@ -929,7 +1001,7 @@ function loadNoorModel(showStatus = false) {
   if (showStatus) setLoadingMessage("Loading Noor...");
   if (noorButton) {
     noorButton.disabled = true;
-    noorButton.textContent = "Noor...";
+    noorButton.querySelector("[aria-hidden='true']").textContent = "●";
   }
 
   const loader = new GLTFLoader();
@@ -985,7 +1057,7 @@ function loadNoorModel(showStatus = false) {
       };
       if (noorButton) {
         noorButton.disabled = false;
-        noorButton.textContent = "Noor";
+        noorButton.querySelector("[aria-hidden='true']").textContent = "●";
       }
       if (queuedNoorSelection) {
         queuedNoorSelection = false;
@@ -999,7 +1071,7 @@ function loadNoorModel(showStatus = false) {
       noorLoading = false;
       if (noorButton) {
         noorButton.disabled = true;
-        noorButton.textContent = "Noor!";
+        noorButton.querySelector("[aria-hidden='true']").textContent = "!";
       }
       setLoadingMessage("Could not load Noor model.", true);
       window.setTimeout(() => setLoadingMessage(""), 2400);
@@ -1009,6 +1081,7 @@ function loadNoorModel(showStatus = false) {
 
 loadLevel(0, "Find goal");
 setLoadingMessage("");
+setCameraMode(getPreferredCameraMode(), false);
 applyDevQuery();
 window.setTimeout(() => loadNoorModel(false), 900);
 requestAnimationFrame(animate);

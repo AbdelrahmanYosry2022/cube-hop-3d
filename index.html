@@ -22,11 +22,22 @@
         </div>
         <div class="top-actions">
           <div class="avatar-switch" aria-label="Choose player">
-            <button class="avatar-button is-active" data-avatar="cube" type="button">Cube</button>
-            <button class="avatar-button" data-avatar="noor" type="button">Noor</button>
+            <button class="avatar-button is-active" data-avatar="cube" type="button" aria-label="Cube" title="Cube">
+              <span aria-hidden="true">■</span>
+            </button>
+            <button class="avatar-button" data-avatar="noor" type="button" aria-label="Noor" title="Noor">
+              <span aria-hidden="true">●</span>
+            </button>
           </div>
-          <button class="restart-button" id="restartButton" type="button">Restart</button>
-          <button class="fullscreen-button" id="fullscreenButton" type="button">Full</button>
+          <button class="camera-button" id="cameraButton" type="button" aria-label="Switch camera" title="Switch camera">
+            <span aria-hidden="true">◉</span>
+          </button>
+          <button class="restart-button" id="restartButton" type="button" aria-label="Restart" title="Restart">
+            <span aria-hidden="true">↻</span>
+          </button>
+          <button class="fullscreen-button" id="fullscreenButton" type="button" aria-label="Fullscreen" title="Fullscreen">
+            <span aria-hidden="true">⛶</span>
+          </button>
         </div>
       </section>
 
@@ -49,6 +60,12 @@
           <p id="winEyebrow">Level clear</p>
           <h2 id="winTitle">Stage clear!</h2>
           <span id="winDetail">Ready for the next level.</span>
+          <div class="result-grid" aria-label="Level results">
+            <span>Stars <strong id="resultStars">★★★</strong></span>
+            <span>Moves <strong id="resultMoves">0</strong></span>
+            <span>Time <strong id="resultTime">0.0s</strong></span>
+            <span>Par <strong id="resultPar">0</strong></span>
+          </div>
           <div class="win-actions">
             <button id="nextLevelButton" type="button">Next level</button>
             <button id="overlayRestartButton" type="button">Restart</button>
